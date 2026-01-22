@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h2>Página Inicial</h2>
+
+<p>Bem-vindo à aplicação.</p>
+<p>Esta página é pública e não necessita de login.</p>
+
+<ul>
+  <li><a href="{{ url_for('clientes') }}">Clientes</a></li>
+  <li><a href="{{ url_for('animais') }}">Animais</a></li>
+  <li><a href="{{ url_for('consultas') }}">Consultas</a></li>
+</ul>
+<hr>
+<table>
+
+<h2>Faça o login abaixo</h2>
+
+<form method="post">
+  <p>
+    Username:<br>
+    <input type="text" name="username" required value="{{ users.username if login else '' }}">
+  </p>
+
+  <p>
+    Password:<br>
+    <input type="text" name="password" required value="{{ users.password if login else '' }}">
+  </p>
+
+  <p>
+    Tipo (role):<br>
+    <select name="role">
+      <option value="staff" {% if login and login.role == "staff" %}selected{% endif %}>Funcionario</option>
+      <option value="admin" {% if login and login.role == "admin" %}selected{% endif %}>Admin</option>
+    </select>
+  </p>
+
+  <button type="submit">Guardar</button>
+  <a href="{{ url_for('login') }}">Cancelar</a>
+</form>
+
+</table>
+
+{% endblock %}
