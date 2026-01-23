@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>Utilizadores</h2>
+
+{% if session.role == "admin" %}
+  <p><a href="{{ url_for('novo') }}">+ Novo utilizador</a></p>
+{% endif %}
+
+<table border="1" cellpadding="6">
+  <tr>
+    <th>ID</th>
+    <th>Nome</th>
+    <th>Email</th>
+    <th>Criado em</th>
+
+    {% if session.role == "admin" %}
+      <th>Ações</th>
+    {% endif %}
+  </tr>
+
+  {% for u in utilizadores %}
+  <tr>
+    <td>{{ u.id }}</td>
+    <td>{{ u.nome }}</td>
+    <td>{{ u.email }}</td>
+    <td>{{ u.created_at }}</td>
+
+    {% if session.role == "admin" %}
+    <td>
+      <a href="{{ url_for('editar', id=u.id) }}">Editar</a>
+      <form action="{{ url_for('apagar', id=u.id) }}" method="post" style="display:inline;">
+        <button type="submit" onclick="return confirm('Tem a certeza que quer apagar?')">Apagar</button>
+      </form>
+    </td>
+    {% endif %}
+  </tr>
+  {% endfor %}
+</table>
+
+{% if session.role == "admin" %}
+
+  <hr>
+  <h2>Logins (Admin)</h2>
+
+  <p><a href="{{ url_for('login_novo') }}">+ Novo login</a></p>
+
+  <table border="1" cellpadding="6">
+    <tr>
+      <th>ID</th>
+      <th>Username</th>
+      <th>Password</th>
+      <th>Role</th>
+      <th>Criado em</th>
+      <th>Ações</th>
+    </tr>
+
+    {% for l in logins %}
+    <tr>
+      <td>{{ l.id }}</td>
+      <td>{{ l.username }}</td>
+      <td>{{ l.password }}</td>
+      <td>{{ l.role }}</td>
+      <td>{{ l.created_at }}</td>
+      <td>
+        <a href="{{ url_for('login_editar', id=l.id) }}">Editar</a>
+
+        <form action="{{ url_for('login_apagar', id=l.id) }}" method="post" style="display:inline;">
+          <button type="submit" onclick="return confirm('Tem a certeza que quer apagar este login?')">Apagar</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+
+{% endif %}
+
+{% endblock %}

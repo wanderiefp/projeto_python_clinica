@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2> {{ titulo }}</h2>
+
+<form method="post">
+    <p>
+        Nome: <br>
+        <input type="text" name="username" required value="{{users.username if users else '' }}">
+    </p>
+
+    <p> 
+        Nova Senha:<br>
+        <input type="text" name="password" required value="{{users.password if users else '' }}"> 
+    </p>
+
+    <p>Tipo de Permissão:
+        <select name="role">
+            <option value="admin" {% if users and users.role == "admin"%}
+            selected{% endif %}> Admin </option>
+
+            <option value="staff" {% if users and users.role == "staff"%}
+            selected{% endif %}> Funcionário </option>
+        </select>
+    </p>
+
+    <button type="submit">Guardar</button>
+    <a href="{{ url_for('users') }}">Cancelar</a>
+
+
+</form>
+
+{% endblock %}

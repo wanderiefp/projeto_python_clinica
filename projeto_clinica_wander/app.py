@@ -2,216 +2,389 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 import mysql.connector
 from functools import wraps
 
+
 # ---------- BD ----------
 def ligar_bd():
     return mysql.connector.connect(
         host="62.28.39.135",
         user="efa0125",
         password="123.Abc",
-        database="efa0125_15_vet_clinic"
+        database="efa0125_15_vet_clinic",
     )
+
 
 # ---------- APP ----------
 app = Flask(__name__)
 app.secret_key = "chave-simples-para-formacao"
 
-# ---------- DECORATORS DE SEGURANÇA ----------
-def login_obrigatorio(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if "user_id" not in session:
-            flash("Faça login para continuar.")
-            return redirect(url_for("login"))
-        return f(*args, **kwargs)
-    return decorated
+
+# ---------- FUNÇÕES SIMPLES DE PERMISSÕES ----------
+def esta_logado():
+    return "user_id" in session
 
 
-def exige_roles(*roles):
-    def wrapper(f):
-        @wraps(f)
-        def decorated(*args, **kwargs):
-            if session.get("role") not in roles:
-                flash("Sem permissões para esta ação.")
-                return redirect(url_for("dashboard"))
-            return f(*args, **kwargs)
-        return decorated
-    return wrapper
+def e_admin():
+    return session.get("role") == "admin"
+
+
+def exigir_login():
+    if not esta_logado():
+        return redirect(url_for("login"))
+    return None
+
+
+def exigir_admin():
+    if not esta_logado():
+        return redirect(url_for("login"))
+    if not e_admin():
+        flash("Não tem permissões para executar essa ação.")
+        return redirect(url_for("users"))
+    return None
+
 
 # ---------- LOGIN ----------
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
         username = request.form["username"].strip()
-        password = request.form["password"].strip()
+        password = request.form["password"]
 
         cnx = ligar_bd()
-        cursor = cnx.cursor(dictionary=True)
+        cur = cnx.cursor(dictionary=True)
 
-        cursor.execute(
-            "SELECT id, username, password, role, cliente_id "
-            "FROM users WHERE username=%s",
-            (username,)
+        # Agora vai buscar também o role
+        cur.execute(
+            "SELECT id, username, password, role FROM users WHERE username = %s",
+            (username,),
         )
-        user = cursor.fetchone()
+        user = cur.fetchone()
 
-        cursor.close()
+        cur.close()
         cnx.close()
 
-        if not user or user["password"] != password:
-            flash("Username ou password inválidos.")
+        # Validar password (texto simples)
+        if user and user["password"] == password:
+            session["user_id"] = user["id"]
+            session["username"] = user["username"]
+            session["role"] = user["role"]  # <-- MUITO IMPORTANTE
+            return redirect(url_for("users"))
+        else:
+            flash("Username ou password incorretos.")
             return redirect(url_for("login"))
 
-        session.clear()
-        session["user_id"] = user["id"]
-        session["username"] = user["username"]
-        session["role"] = user["role"]
-        session["cliente_id"] = user["cliente_id"]
+    return render_template("login.html")
 
-        flash(f"Bem-vindo, {user['username']}!")
-        return redirect(url_for("dashboard"))
 
-    return render_template("index_login.html")
-
-# ---------- LOGOUT ----------
 @app.route("/logout")
 def logout():
     session.clear()
-    return redirect(url_for("login"))
+    return redirect(url_for("index"))  # volta à página inicial
+
+
+# ---------- HOME (opcional) ----------
+@app.route("/")
+def index():
+    # Página pública (sem login)
+    return render_template("index.html")
+
 
 # ---------- DASHBOARD ----------
 @app.route("/dashboard")
-@login_obrigatorio
 def dashboard():
+    redir = exigir_login()
+    if redir:
+        return redir
+
     return render_template("dashboard.html")
 
-# ---------- CLIENTE ----------
+
+# ---------- CLIENTES (LISTAR) ----------
 @app.route("/clientes")
-@login_obrigatorio
-@exige_roles("cliente")
-def cliente():
-    cliente_id = session["cliente_id"]
+def clientes():
+    redir = exigir_login()
+    if redir:
+        return redir
 
     cnx = ligar_bd()
-    cursor = cnx.cursor(dictionary=True)
+    cur = cnx.cursor(dictionary=True)
 
-    cursor.execute(
-        "SELECT nome, telefone, email, morada, criado_at "
-        "FROM clientes WHERE id=%s",
-        (cliente_id,)
+    cur.execute(
+        "SELECT id, nome, telefone, email, morada, created_at FROM clientes ORDER BY id DESC"
     )
-    cliente = cursor.fetchone()
+    lista_clientes = cur.fetchall()
 
-    cursor.close()
+    cur.close()
     cnx.close()
 
-    return render_template("clientes.html", cliente=cliente)
+    return render_template("clientes.html", clientes=lista_clientes)
 
-# ---------- ANIMAIS ----------
-@app.route("/animais")
-@login_obrigatorio
-@exige_roles("cliente")
-def animais():
-    cliente_id = session["cliente_id"]
 
-    cnx = ligar_bd()
-    cursor = cnx.cursor(dictionary=True)
-
-    cursor.execute(
-        "SELECT nome, especie, raca, data_nascimento "
-        "FROM animais WHERE cliente_id=%s",
-        (cliente_id,)
-    )
-    animais = cursor.fetchall()
-
-    cursor.close()
-    cnx.close()
-
-    return render_template("animais.html", animais=animais)
-
-# ---------- USERS (ADMIN / STAFF) ----------
+# ---------- USERS (LISTAR) ----------
 @app.route("/users")
-@login_obrigatorio
-@exige_roles("admin", "staff")
-def listar_users():
+def users():
+    redir = exigir_login()
+    if redir:
+        return redir
+
+    cnx = ligar_bd()
+    cur = cnx.cursor(dictionary=True)
+
+    cur.execute("SELECT id, username, role, created_at FROM users ORDER BY id DESC")
+    lista_users = cur.fetchall()
+
+    cur.close()
+    cnx.close()
+
+    return render_template("users.html", users=lista_users)
+
+
+# ---------- ANIMAIS (LISTAR) ----------
+@app.route("/animais")
+def animais():
+    redir = exigir_login()
+    if redir:
+        return redir
+
+    cnx = ligar_bd()
+    cur = cnx.cursor(dictionary=True)
+
+    cur.execute(
+        "SELECT id, cliente_id, nome, especie, raca, data_nascimento, created_at FROM animais ORDER BY id DESC"
+    )
+    lista_animais = cur.fetchall()
+
+    cur.close()
+    cnx.close()
+
+    return render_template("animais.html", animais=lista_animais)
+
+
+# ---------- CONSULTAS (LISTAR) ----------
+@app.route("/consultas")
+def consultas():
+    redir = exigir_login()
+    if redir:
+        return redir
+
+    cnx = ligar_bd()
+    cur = cnx.cursor(dictionary=True)
+
+    cur.execute(
+        "SELECT id, animal_id, data_hora, motivo, notas, created_at FROM consultas ORDER BY id DESC"
+    )
+    lista_consultas = cur.fetchall()
+
+    cur.close()
+    cnx.close()
+
+    return render_template("consultas.html", consultas=lista_consultas)
+
+
+@app.route("/clientes/novo", methods=["GET", "POST"])
+def cliente_novo():
+    redir = exigir_admin()
+    if redir:
+        return redir
+
+    if request.method == "POST":
+        nome = request.form["nome"].strip()
+        telefone = request.form["telefone"].strip()
+        email = request.form["email"].strip()
+        morada = request.form["morada"].strip()
+
+        cnx = ligar_bd()
+        cur = cnx.cursor()
+        try:
+            cur.execute(
+                "INSERT INTO clientes (nome, telefone, email, morada) VALUES (%s, %s, %s, %s)",
+                (nome, telefone, email, morada),
+            )
+            cnx.commit()
+            flash("Cliente criado com sucesso!")
+        except mysql.connector.Error as err:
+            flash(f"Erro ao criar cliente: {err}")
+        finally:
+            cur.close()
+            cnx.close()
+
+        return redirect(url_for("clientes"))
+
+    # GET: formulário vazio
+    return render_template("clientes_form.html", titulo="Novo cliente", login=None)
+
+
+@app.route("/login/editar/<int:id>", methods=["GET", "POST"])
+def cliente_editar(id):
+    redir = exigir_admin()
+    if redir:
+        return redir
+
+    cnx = ligar_bd()
+    cur = cnx.cursor(dictionary=True)
+
+    if request.method == "POST":
+        nome = request.form["nome"].strip()
+        telefone = request.form["telefone"].strip()
+        email = request.form["email"].strip()
+        morada = request.form["morada"].strip()
+
+        cur2 = cnx.cursor()
+        try:
+            cur2.execute(
+                "UPDATE clientes SET nome=%s, telefone=%s, email=%s, morada=%s WHERE id=%s",
+                (nome, telefone, email, morada, id),
+            )
+            cnx.commit()
+            if cur2.rowcount == 0:
+                flash("Não foi possível atualizar (ID não encontrado).")
+            else:
+                flash("Cliente atualizado com sucesso!")
+        except mysql.connector.Error as err:
+            flash(f"Erro ao atualizar cliente: {err}")
+        finally:
+            cur2.close()
+            cur.close()
+            cnx.close()
+
+        return redirect(url_for("clientes"))
+
+    # GET: buscar login
+    cur.execute("SELECT id, nome, telefone, email, morada FROM clientes WHERE id=%s", (id,))
+    login_row = cur.fetchone()
+    cur.close()
+    cnx.close()
+
+    if not login_row:
+        flash("Login não encontrado.")
+        return redirect(url_for("users"))
+
+    return render_template("clientes_form.html", titulo="Editar cliente", login=login_row)
+
+
+@app.route("/cliente/apagar/<int:id>", methods=["POST"])
+def cliente_apagar(id):
+    redir = exigir_admin()
+    if redir:
+        return redir
+
+    cnx = ligar_bd()
+    cur = cnx.cursor()
+    try:
+        cur.execute("DELETE FROM clientes WHERE id=%s", (id,))
+        cnx.commit()
+        if cur.rowcount == 0:
+            flash("Não existe cliente com esse ID.")
+        else:
+            flash("Cliente apagado com sucesso!")
+    except mysql.connector.Error as err:
+        flash(f"Erro ao apagar cliente: {err}")
+    finally:
+        cur.close()
+        cnx.close()
+
+    return redirect(url_for("clientes"))
+
+
+# ---------- CRUD (APENAS ADMIN) ----------
+@app.route("/novo", methods=["GET", "POST"])
+def user_novo():
+    redir = exigir_admin()
+    if redir:
+        return redir
+
+    if request.method == "POST":
+        username = request.form["username"].strip()
+        password = request.form["password"].strip()
+        role = request.form["role"].strip()
+
+        cnx = ligar_bd()
+        cursor = cnx.cursor()
+
+        try:
+            cursor.execute(
+                "INSERT INTO users (username, password, role) VALUES (%s, %s, %s)",
+                (username, password, role),
+            )
+            cnx.commit()
+            flash("Utilizador criado com sucesso!")
+        except mysql.connector.Error as err:
+            flash(f"Erro ao criar: {err}")
+        finally:
+            cursor.close()
+            cnx.close()
+
+        return redirect(url_for("users"))
+
+    return render_template("user_form.html", titulo="Novo utilizador", utilizador=None)
+
+
+@app.route("/editar/<int:id>", methods=["GET", "POST"])
+def user_editar(id):
+    redir = exigir_admin()
+    if redir:
+        return redir
+
     cnx = ligar_bd()
     cursor = cnx.cursor(dictionary=True)
 
-    cursor.execute("SELECT id, username, role FROM users")
-    users = cursor.fetchall()
+    if request.method == "POST":
+        username = request.form["username"].strip()
+        password = request.form["password"].strip()
+        role = request.form["role"].strip()
+
+        cursor2 = cnx.cursor()
+        try:
+            cursor2.execute(
+                "UPDATE users SET username=%s, password=%s, role=%s WHERE id=%s",
+                (username, password, role, id),
+            )
+            cnx.commit()
+            flash("Utilizador atualizado com sucesso!")
+        except mysql.connector.Error as err:
+            flash(f"Erro ao atualizar: {err}")
+        finally:
+            cursor2.close()
+            cursor.close()
+            cnx.close()
+
+        return redirect(url_for("users"))
+
+    cursor.execute("SELECT id, username, password, role FROM users WHERE id=%s", (id,))
+    utilizador = cursor.fetchone()
 
     cursor.close()
     cnx.close()
 
-    return render_template("users.html", users=users)
+    if not utilizador:
+        flash("Utilizador não encontrado.")
+        return redirect(url_for("users"))
 
-# ---------- EDITAR USER ----------
-@app.route("/users/editar/<int:id>", methods=["POST"])
-@login_obrigatorio
-@exige_roles("admin", "staff")
-def editar_user(id):
-    if session["user_id"] == id:
-        flash("Não pode editar o seu próprio utilizador.")
-        return redirect(url_for("listar_users"))
+    return render_template(
+        "user_form.html", titulo="Editar utilizador", utilizador=utilizador
+    )
 
-    username = request.form["username"].strip()
-    password = request.form["password"].strip()
-    role = request.form["role"].strip()
+
+@app.route("/apagar/<int:id>", methods=["POST"])
+def user_apagar(id):
+    redir = exigir_admin()
+    if redir:
+        return redir
 
     cnx = ligar_bd()
     cursor = cnx.cursor()
 
-    cursor.execute(
-        "UPDATE users SET username=%s, password=%s, role=%s WHERE id=%s",
-        (username, password, role, id)
-    )
-    cnx.commit()
+    try:
+        cursor.execute("DELETE FROM users WHERE id=%s", (id,))
+        cnx.commit()
+        flash("Utilizador apagado com sucesso!")
+    except mysql.connector.Error as err:
+        flash(f"Erro ao apagar: {err}")
+    finally:
+        cursor.close()
+        cnx.close()
 
-    cursor.close()
-    cnx.close()
+    return redirect(url_for("users"))
 
-    flash("Utilizador atualizado com sucesso.")
-    return redirect(url_for("listar_users"))
 
-# ---------- APAGAR USER ----------
-@app.route("/users/apagar/<int:id>")
-@login_obrigatorio
-@exige_roles("admin")
-def apagar_user(id):
-    if session["user_id"] == id:
-        flash("Não pode apagar o seu próprio utilizador.")
-        return redirect(url_for("listar_users"))
-
-    cnx = ligar_bd()
-    cursor = cnx.cursor()
-
-    cursor.execute("DELETE FROM users WHERE id=%s", (id,))
-    cnx.commit()
-
-    cursor.close()
-    cnx.close()
-
-    flash("Utilizador apagado com sucesso.")
-    return redirect(url_for("listar_users"))
-
-# ---------- CONSULTAS ----------
-@app.route("/consultas/<int:animal_id>")
-@login_obrigatorio
-def consultas(animal_id):
-    cnx = ligar_bd()
-    cursor = cnx.cursor(dictionary=True)
-
-    cursor.execute(
-        "SELECT data_hora, motivo, notas "
-        "FROM consultas WHERE animal_id=%s",
-        (animal_id,)
-    )
-    consultas = cursor.fetchall()
-
-    cursor.close()
-    cnx.close()
-
-    return render_template("consultas.html", consultas=consultas)
-
-# ---------- RUN ----------
 if __name__ == "__main__":
     app.run(debug=True)

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+{% endblock %}
+<form method="post">
+  <p>
+    Nome:<br>
+    <input type="text" name="nome" required value="{{ animais.nome if animais else '' }}">
+  </p>
+  <p>
+    Raça:<br>
+    <input type="text" name="raca" required value="{{ animais.raca if animais else '' }}">
+  </p>
+  <p>
+    Data de Nascimento:<br>
+    <input type="date" name="data_nascimento" required value="{{ animais.data_nascimento if animais else '' }}">
+  </p>
+  <p>
+    Cliente ID:<br>
+    <input type="number" name="cliente_id" required value="{{ animais.cliente_id if animais else '' }}">
+  </p>
+
+  <button type="submit">Guardar</button>
+</form>
+
+{% endblock %}

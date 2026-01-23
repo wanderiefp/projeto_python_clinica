@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+
+
+
+   
+<form method="post">
+  <p>
+    Nome:<br>
+    <input type="text" name="nome" required value="{{ clientes.nome if clientes else '' }}">
+  </p>
+
+  <p>
+    Telefone:<br>
+    <input type="tel" name="telefone" required value="{{ clientes.telefone if clientes else '' }}">
+  </p>
+
+  <p>
+    Email:<br>
+    <input type="email" name="email" required value="{{ clientes.email if clientes else '' }}">
+  </p>
+
+  <p>
+    Morada:<br>
+    <input type="text" name="morada" required value="{{ clientes.morada if clientes else '' }}">
+  </p>
+
+
+  <button type="submit">Guardar</button>
+  <a href="{{ url_for('clientes') }}">Cancelar</a>
+</form>
+
+
+{% endblock %}

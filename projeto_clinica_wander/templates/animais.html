@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Animais</title>
+    
+</head>
+<body>
+    <h1>Lista de Animais</h1>
+    <button><a href="{{ url_for('animais_form') }}">Adicionar Animal</a></button>
+        <br>
+    <table border="1" class="table table-custom shadow-sm">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nome</th>
+                <th>Espécie</th>
+                <th>Raça</th>
+                <th>Idade</th>
+                <th>Dono (Cliente ID)</th>
+                <th>Data de Criação</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for animal in animais %}
+            <tr>
+                <td>{{ animal.id }}</td>
+                <td>{{ animal.nome }}</td>
+                <td>{{ animal.especie }}</td>
+                <td>{{ animal.raca }}</td>
+                <td>{{ animal.idade }}</td>
+                <td>{{ animal.cliente_id }}</td>
+                <td>{{ animal.created_at }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
+{% endblock %}
