@@ -1,9 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
 
-
-
-   
 <form method="post">
   <p>
     Nome:<br>
@@ -25,10 +22,16 @@
     <input type="text" name="morada" required value="{{ clientes.morada if clientes else '' }}">
   </p>
 
+  <p>
+    Password:<br>
+    <input type="text" name="password" required value="{{ users.password if users else '' }}">
+  </p>
+
+
+
 
   <button type="submit">Guardar</button>
   <a href="{{ url_for('clientes') }}">Cancelar</a>
 </form>
-
 
 {% endblock %}

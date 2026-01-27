@@ -2,12 +2,30 @@
 {% block title %}Login{% endblock %}
 
 {% block content %}
-  <h1>Login</h1>
+  <h1>Login para admin ou staff</h1>
 
   <form method="post">
     <p>
       Username<br>
       <input type="text" name="username" required>
+    </p>
+
+    <p>
+      Password<br>
+      <input type="password" name="password" required>
+    </p>
+
+    <button type="submit">Entrar</button>
+    <a href="{{ url_for('index') }}">Cancelar</a>
+  </form>
+  <br>
+  <hr>
+  <h1>Login para Cliente</h1>
+
+  <form method="post">
+    <p>
+      Email<br>
+      <input type="email" name="email" required>
     </p>
 
     <p>

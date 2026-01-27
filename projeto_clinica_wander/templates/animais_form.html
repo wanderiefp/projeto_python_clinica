@@ -1,10 +1,24 @@
 {% extends "base.html" %}
 {% block content %}
-{% endblock %}
 <form method="post">
+
+  <p>
+       Selecione o cliente:<br>
+       <select name="cliente_id" required class="form-select">
+           <option value="">-- Escolha um cliente --</option>
+           {% for cliente in clientes %}
+           <option value="{{ cliente.id }}">{{ cliente.nome }}</option>
+           {% endfor %}
+       </select>
+  </p>
+
   <p>
     Nome:<br>
     <input type="text" name="nome" required value="{{ animais.nome if animais else '' }}">
+  </p>
+  <p>
+    Espécie:<br>
+    <input type="text" name="especie" required value="{{ animais.especie if animais else '' }}">
   </p>
   <p>
     Raça:<br>
@@ -14,12 +28,10 @@
     Data de Nascimento:<br>
     <input type="date" name="data_nascimento" required value="{{ animais.data_nascimento if animais else '' }}">
   </p>
-  <p>
-    Cliente ID:<br>
-    <input type="number" name="cliente_id" required value="{{ animais.cliente_id if animais else '' }}">
-  </p>
+  
 
   <button type="submit">Guardar</button>
+  <a href="{{ url_for('animais') }}">Cancelar</a>
 </form>
 
 {% endblock %}

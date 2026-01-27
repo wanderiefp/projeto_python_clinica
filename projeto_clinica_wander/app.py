@@ -26,6 +26,9 @@ def esta_logado():
 def e_admin():
     return session.get("role") == "admin"
 
+def e_staff():
+    return session.get("role") == "staff"
+
 
 def exigir_login():
     if not esta_logado():
@@ -138,153 +141,6 @@ def users():
     return render_template("users.html", users=lista_users)
 
 
-# ---------- ANIMAIS (LISTAR) ----------
-@app.route("/animais")
-def animais():
-    redir = exigir_login()
-    if redir:
-        return redir
-
-    cnx = ligar_bd()
-    cur = cnx.cursor(dictionary=True)
-
-    cur.execute(
-        "SELECT id, cliente_id, nome, especie, raca, data_nascimento, created_at FROM animais ORDER BY id DESC"
-    )
-    lista_animais = cur.fetchall()
-
-    cur.close()
-    cnx.close()
-
-    return render_template("animais.html", animais=lista_animais)
-
-
-# ---------- CONSULTAS (LISTAR) ----------
-@app.route("/consultas")
-def consultas():
-    redir = exigir_login()
-    if redir:
-        return redir
-
-    cnx = ligar_bd()
-    cur = cnx.cursor(dictionary=True)
-
-    cur.execute(
-        "SELECT id, animal_id, data_hora, motivo, notas, created_at FROM consultas ORDER BY id DESC"
-    )
-    lista_consultas = cur.fetchall()
-
-    cur.close()
-    cnx.close()
-
-    return render_template("consultas.html", consultas=lista_consultas)
-
-
-@app.route("/clientes/novo", methods=["GET", "POST"])
-def cliente_novo():
-    redir = exigir_admin()
-    if redir:
-        return redir
-
-    if request.method == "POST":
-        nome = request.form["nome"].strip()
-        telefone = request.form["telefone"].strip()
-        email = request.form["email"].strip()
-        morada = request.form["morada"].strip()
-
-        cnx = ligar_bd()
-        cur = cnx.cursor()
-        try:
-            cur.execute(
-                "INSERT INTO clientes (nome, telefone, email, morada) VALUES (%s, %s, %s, %s)",
-                (nome, telefone, email, morada),
-            )
-            cnx.commit()
-            flash("Cliente criado com sucesso!")
-        except mysql.connector.Error as err:
-            flash(f"Erro ao criar cliente: {err}")
-        finally:
-            cur.close()
-            cnx.close()
-
-        return redirect(url_for("clientes"))
-
-    # GET: formulário vazio
-    return render_template("clientes_form.html", titulo="Novo cliente", login=None)
-
-
-@app.route("/login/editar/<int:id>", methods=["GET", "POST"])
-def cliente_editar(id):
-    redir = exigir_admin()
-    if redir:
-        return redir
-
-    cnx = ligar_bd()
-    cur = cnx.cursor(dictionary=True)
-
-    if request.method == "POST":
-        nome = request.form["nome"].strip()
-        telefone = request.form["telefone"].strip()
-        email = request.form["email"].strip()
-        morada = request.form["morada"].strip()
-
-        cur2 = cnx.cursor()
-        try:
-            cur2.execute(
-                "UPDATE clientes SET nome=%s, telefone=%s, email=%s, morada=%s WHERE id=%s",
-                (nome, telefone, email, morada, id),
-            )
-            cnx.commit()
-            if cur2.rowcount == 0:
-                flash("Não foi possível atualizar (ID não encontrado).")
-            else:
-                flash("Cliente atualizado com sucesso!")
-        except mysql.connector.Error as err:
-            flash(f"Erro ao atualizar cliente: {err}")
-        finally:
-            cur2.close()
-            cur.close()
-            cnx.close()
-
-        return redirect(url_for("clientes"))
-
-    # GET: buscar login
-    cur.execute("SELECT id, nome, telefone, email, morada FROM clientes WHERE id=%s", (id,))
-    login_row = cur.fetchone()
-    cur.close()
-    cnx.close()
-
-    if not login_row:
-        flash("Login não encontrado.")
-        return redirect(url_for("users"))
-
-    return render_template("clientes_form.html", titulo="Editar cliente", login=login_row)
-
-
-@app.route("/cliente/apagar/<int:id>", methods=["POST"])
-def cliente_apagar(id):
-    redir = exigir_admin()
-    if redir:
-        return redir
-
-    cnx = ligar_bd()
-    cur = cnx.cursor()
-    try:
-        cur.execute("DELETE FROM clientes WHERE id=%s", (id,))
-        cnx.commit()
-        if cur.rowcount == 0:
-            flash("Não existe cliente com esse ID.")
-        else:
-            flash("Cliente apagado com sucesso!")
-    except mysql.connector.Error as err:
-        flash(f"Erro ao apagar cliente: {err}")
-    finally:
-        cur.close()
-        cnx.close()
-
-    return redirect(url_for("clientes"))
-
-
 # ---------- CRUD (APENAS ADMIN) ----------
 @app.route("/novo", methods=["GET", "POST"])
 def user_novo():
@@ -384,6 +240,230 @@ def user_apagar(id):
         cnx.close()
 
     return redirect(url_for("users"))
+
+# ---------- ANIMAIS ----------
+@app.route("/animais")
+def animais():
+    redir = exigir_login()
+    if redir:
+        return redir
+
+    cnx = ligar_bd()
+    cur = cnx.cursor(dictionary=True)
+
+    # Admin/Staff vêem todos os animais
+    if e_admin() or e_staff():
+        cur.execute(
+            "SELECT id, cliente_id, nome, especie, raca, data_nascimento, created_at "
+            "FROM animais ORDER BY id DESC"
+        )
+        is_admin_or_staff = True
+    else:
+        cliente_id = session.get("cliente_id")
+        cur.execute(
+            "SELECT id, cliente_id, nome, especie, raca, data_nascimento, created_at "
+            "FROM animais WHERE cliente_id=%s ORDER BY id DESC",
+            (cliente_id,)
+        )
+        is_admin_or_staff = False
+
+    lista_animais = cur.fetchall()
+    cur.close()
+    cnx.close()
+
+    return render_template("animais.html", animais=lista_animais, is_admin_or_staff=is_admin_or_staff)
+
+
+@app.route("/animais/novo", methods=["GET", "POST"])
+def animais_novo():
+    redir = exigir_login()
+    if redir:
+        return redir
+    
+    if not e_admin() and not e_staff():
+        flash("Acesso negado.")
+        return redirect(url_for("dashboard"))
+
+    cnx = ligar_bd()
+    cur = cnx.cursor(dictionary=True)
+
+    # Pegamos todos os clientes para o select
+    cur.execute("SELECT id, nome FROM clientes ORDER BY nome ASC")
+    clientes = cur.fetchall()
+
+    if request.method == "POST":
+        cliente_id = request.form["cliente_id"]  # vem do select
+        nome = request.form["nome"].strip()
+        especie = request.form["especie"].strip()
+        raca = request.form["raca"].strip()
+        data_nascimento = request.form["data_nascimento"].strip()
+
+        try:
+            cur.execute(
+                "INSERT INTO animais (cliente_id, nome, especie, raca, data_nascimento, created_at) "
+                "VALUES (%s, %s, %s, %s, %s, NOW())",
+                (cliente_id, nome, especie, raca, data_nascimento),
+            )
+            cnx.commit()
+            flash("Animal adicionado com sucesso!")
+            return redirect(url_for("animais"))
+
+        except mysql.connector.Error as err:
+            flash(f"Erro ao adicionar novo animal: {err}")
+            return redirect(url_for("animais"))
+
+    cur.close()
+    cnx.close()
+
+    return render_template("animais_form.html", titulo="Novo Animal", clientes=clientes)
+
+
+
+# ---------- CONSULTAS (LISTAR) ----------
+@app.route("/consultas")
+def consultas():
+    redir = exigir_login()
+    if redir:
+        return redir
+
+    cnx = ligar_bd()
+    cur = cnx.cursor(dictionary=True)
+
+    cur.execute(
+        "SELECT id, animal_id, data_hora, motivo, notas, created_at FROM consultas ORDER BY id DESC"
+    )
+    lista_consultas = cur.fetchall()
+
+    cur.close()
+    cnx.close()
+
+    return render_template("consultas.html", consultas=lista_consultas)
+
+
+@app.route("/clientes/novo", methods=["GET", "POST"])
+def cliente_novo():
+    redir = exigir_admin()
+    if redir:
+        return redir
+
+    if request.method == "POST":
+        nome = request.form["nome"].strip()
+        telefone = request.form["telefone"].strip()
+        email = request.form["email"].strip()
+        morada = request.form["morada"].strip()
+        password = request.form["password"]
+
+        cnx = ligar_bd()
+        cur = cnx.cursor()
+
+        try:
+            # Inserir na tabela clientes
+            cur.execute(
+                "INSERT INTO clientes (nome, password, telefone, email, morada) "
+                "VALUES (%s, %s, %s, %s, %s)",
+                (nome, password, telefone, email, morada)
+            )
+            cliente_id = cur.lastrowid  # pega o id do cliente recém-criado
+
+            # Inserir na tabela users (login do cliente)
+            cur.execute(
+                "INSERT INTO users (username, password, role, cliente_id) VALUES (%s, %s, %s, %s)",
+                (nome, password, "cliente", cliente_id)
+            )
+
+            cnx.commit()
+            flash("Cliente criado com sucesso!")
+
+        except mysql.connector.Error as err:
+            flash(f"Erro ao criar cliente: {err}")
+
+        finally:
+            cur.close()
+            cnx.close()
+
+        return redirect(url_for("clientes"))
+
+    # GET: formulário vazio
+    return render_template("clientes_form.html", titulo="Novo cliente")
+
+
+
+@app.route("/login/editar/<int:id>", methods=["GET", "POST"])
+def cliente_editar(id):
+    redir = exigir_admin()
+    if redir:
+        return redir
+
+    cnx = ligar_bd()
+    cur = cnx.cursor(dictionary=True)
+
+    if request.method == "POST":
+        nome = request.form["nome"].strip()
+        telefone = request.form["telefone"].strip()
+        email = request.form["email"].strip()
+        morada = request.form["morada"].strip()
+
+        cur2 = cnx.cursor()
+        try:
+            cur2.execute(
+                "UPDATE clientes SET nome=%s, telefone=%s, email=%s, morada=%s WHERE id=%s",
+                (nome, telefone, email, morada, id),
+            )
+            cnx.commit()
+            if cur2.rowcount == 0:
+                flash("Não foi possível atualizar (ID não encontrado).")
+            else:
+                flash("Cliente atualizado com sucesso!")
+        except mysql.connector.Error as err:
+            flash(f"Erro ao atualizar cliente: {err}")
+        finally:
+            cur2.close()
+            cur.close()
+            cnx.close()
+
+        return redirect(url_for("clientes"))
+
+    # GET: buscar login
+    cur.execute(
+        "SELECT id, nome, telefone, email, morada FROM clientes WHERE id=%s", (id,)
+    )
+    login_row = cur.fetchone()
+    cur.close()
+    cnx.close()
+
+    if not login_row:
+        flash("Login não encontrado.")
+        return redirect(url_for("users"))
+
+    return render_template(
+        "clientes_form.html", titulo="Editar cliente", login=login_row
+    )
+
+
+@app.route("/cliente/apagar/<int:id>", methods=["POST"])
+def cliente_apagar(id):
+    redir = exigir_admin()
+    if redir:
+        return redir
+
+    cnx = ligar_bd()
+    cur = cnx.cursor()
+    try:
+        cur.execute("DELETE FROM clientes WHERE id=%s", (id,))
+        cnx.commit()
+        if cur.rowcount == 0:
+            flash("Não existe cliente com esse ID.")
+        else:
+            flash("Cliente apagado com sucesso!")
+    except mysql.connector.Error as err:
+        flash(f"Erro ao apagar cliente: {err}")
+    finally:
+        cur.close()
+        cnx.close()
+
+    return redirect(url_for("clientes"))
+
+
 
 
 if __name__ == "__main__":
