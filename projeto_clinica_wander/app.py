@@ -20,28 +20,25 @@ app.secret_key = "chave-simples-para-formacao"
 
 # ---------- FUNÇÕES SIMPLES DE PERMISSÕES ----------
 def esta_logado():
-    return "user_id" in session
+    return "user_id" in session or "cliente_id" in session
 
 
-def e_admin():
+
+def exigir_admin():
     return session.get("role") == "admin"
+
 
 def e_staff():
     return session.get("role") == "staff"
 
 
+def e_cliente():
+    return session.get("role") == "cliente"
+
+
 def exigir_login():
     if not esta_logado():
         return redirect(url_for("login"))
-    return None
-
-
-def exigir_admin():
-    if not esta_logado():
-        return redirect(url_for("login"))
-    if not e_admin():
-        flash("Não tem permissões para executar essa ação.")
-        return redirect(url_for("users"))
     return None
 
 
@@ -75,13 +72,15 @@ def login():
             flash("Username ou password incorretos.")
             return redirect(url_for("login"))
 
-    return render_template("login.html")
+    return render_template("login.html", titulo="Login de funcionários")
 
 
 @app.route("/logout")
 def logout():
     session.clear()
-    return redirect(url_for("index"))  # volta à página inicial
+    return redirect(
+        url_for("index", username="username", role="role")
+    )  # volta à página inicial
 
 
 # ---------- HOME (opcional) ----------
@@ -98,7 +97,78 @@ def dashboard():
     if redir:
         return redir
 
-    return render_template("dashboard.html")
+    info = {}
+
+    cnx = ligar_bd()
+    cur = cnx.cursor(dictionary=True)
+
+    try:
+        if e_cliente():
+            cliente_id = session.get("cliente_id")
+            cur.execute(
+                "SELECT id, nome, telefone, email, created_at FROM clientes WHERE id=%s",
+                (cliente_id,),
+            )
+            cliente = cur.fetchone()
+
+            cur.execute(
+                "SELECT id, username, password, created_at, role FROM users WHERE cliente_id=%s",
+                (cliente_id,),
+            )
+            user = cur.fetchone()
+
+            info = {
+                "id": cliente["id"] if cliente else None,
+                "nome": cliente["nome"] if cliente else None,
+                "telefone": cliente["telefone"] if cliente else None,
+                "email": cliente["email"] if cliente else None,
+                "username": user["username"] if user else None,
+                "password": user["password"] if user else None,
+                "created_at": user["created_at"] if user else cliente.get("created_at"),
+                "role": user["role"] if user else "cliente",
+            }
+
+        else:  # admin ou staff
+            user_id = session.get("user_id")
+            cur.execute(
+                "SELECT id, username, password, cliente_id, created_at, role FROM users WHERE id=%s",
+                (user_id,),
+            )
+            user = cur.fetchone()
+
+            info = {
+                "id": user["id"] if user else None,
+                "username": user["username"] if user else None,
+                "password": user["password"] if user else None,
+                "created_at": user["created_at"] if user else None,
+                "role": user["role"] if user else None,
+            }
+
+            cliente_id = user["cliente_id"] if user else None
+            if cliente_id:
+                cur.execute(
+                    "SELECT nome, telefone, email FROM clientes WHERE id=%s",
+                    (cliente_id,),
+                )
+                cliente = cur.fetchone()
+                if cliente:
+                    info.update({
+                        "nome": cliente["nome"],
+                        "telefone": cliente["telefone"],
+                        "email": cliente["email"]
+                    })
+    finally:
+        cur.close()
+        cnx.close()
+
+    return render_template(
+        "dashboard.html",
+        titulo="Dashboard",
+        username=info.get("username"),
+        role=info.get("role")
+    )
+
+
 
 
 # ---------- CLIENTES (LISTAR) ----------
@@ -241,6 +311,7 @@ def user_apagar(id):
 
     return redirect(url_for("users"))
 
+
 # ---------- ANIMAIS ----------
 @app.route("/animais")
 def animais():
@@ -252,7 +323,7 @@ def animais():
     cur = cnx.cursor(dictionary=True)
 
     # Admin/Staff vêem todos os animais
-    if e_admin() or e_staff():
+    if exigir_admin() or e_staff():
         cur.execute(
             "SELECT id, cliente_id, nome, especie, raca, data_nascimento, created_at "
             "FROM animais ORDER BY id DESC"
@@ -263,7 +334,7 @@ def animais():
         cur.execute(
             "SELECT id, cliente_id, nome, especie, raca, data_nascimento, created_at "
             "FROM animais WHERE cliente_id=%s ORDER BY id DESC",
-            (cliente_id,)
+            (cliente_id,),
         )
         is_admin_or_staff = False
 
@@ -271,7 +342,9 @@ def animais():
     cur.close()
     cnx.close()
 
-    return render_template("animais.html", animais=lista_animais, is_admin_or_staff=is_admin_or_staff)
+    return render_template(
+        "animais.html", animais=lista_animais, is_admin_or_staff=is_admin_or_staff
+    )
 
 
 @app.route("/animais/novo", methods=["GET", "POST"])
@@ -279,8 +352,8 @@ def animais_novo():
     redir = exigir_login()
     if redir:
         return redir
-    
-    if not e_admin() and not e_staff():
+
+    if not exigir_admin() and not e_staff():
         flash("Acesso negado.")
         return redirect(url_for("dashboard"))
 
@@ -318,8 +391,7 @@ def animais_novo():
     return render_template("animais_form.html", titulo="Novo Animal", clientes=clientes)
 
 
-
-# ---------- CONSULTAS (LISTAR) ----------
+# ---------- CONSULTAS ANIMAIS ----------
 @app.route("/consultas")
 def consultas():
     redir = exigir_login()
@@ -340,6 +412,52 @@ def consultas():
     return render_template("consultas.html", consultas=lista_consultas)
 
 
+# ---------- CLIENTES ----------
+
+
+@app.route("/clientes_login", methods=["GET", "POST"])
+def cliente_login():
+    if request.method == "POST":
+        email = request.form["email"].strip()
+        password = request.form["password"].strip()
+
+        cnx = ligar_bd()
+        cur = cnx.cursor(dictionary=True)
+
+        # Buscar cliente pelo email
+        cur.execute("SELECT id, nome, email FROM clientes WHERE email=%s", (email,))
+        cliente = cur.fetchone()
+
+        if not cliente:
+            flash("Email ou senha inválidos.")
+            return redirect(url_for("cliente_login"))
+
+        # Buscar login na tabela users
+        cur.execute(
+            "SELECT password, role FROM users WHERE cliente_id=%s", (cliente["id"],)
+        )
+        user = cur.fetchone()
+
+        cur.close()
+        cnx.close()
+
+        #Verifica se existe login e se a senha confere
+        if not user or user["password"] != password:
+            flash("Email ou senha inválidos.")
+            return redirect(url_for("cliente_login"))
+
+
+        #Aqui cria a sessão
+        session["cliente_id"] = cliente["id"]
+        session["cliente_nome"] = cliente["nome"]
+        session["role"] = user["role"]
+
+        flash("Login realizado com sucesso!")
+        return redirect(url_for("dashboard"))
+
+    return render_template("clientes_login.html", titulo="Login Cliente")
+
+
 @app.route("/clientes/novo", methods=["GET", "POST"])
 def cliente_novo():
     redir = exigir_admin()
@@ -351,24 +469,35 @@ def cliente_novo():
         telefone = request.form["telefone"].strip()
         email = request.form["email"].strip()
         morada = request.form["morada"].strip()
-        password = request.form["password"]
+        password = "12345678"
 
         cnx = ligar_bd()
         cur = cnx.cursor()
 
+        cur1 = cnx.cursor()
+        cur1.execute(
+            "SELECT email FROM clientes WHERE email=%s",
+            (email),
+        )
+        cliente = cur1.fetchone()
+
+        if cliente == email:
+            flash("Ja existe um cliente com esse email...")
+            return render_template("cliente_novo")
+
         try:
             # Inserir na tabela clientes
             cur.execute(
-                "INSERT INTO clientes (nome, password, telefone, email, morada) "
-                "VALUES (%s, %s, %s, %s, %s)",
-                (nome, password, telefone, email, morada)
+                "INSERT INTO clientes (nome, telefone, email, morada) "
+                "VALUES (%s, %s, %s, %s)",
+                (nome, telefone, email, morada),
             )
             cliente_id = cur.lastrowid  # pega o id do cliente recém-criado
 
             # Inserir na tabela users (login do cliente)
             cur.execute(
                 "INSERT INTO users (username, password, role, cliente_id) VALUES (%s, %s, %s, %s)",
-                (nome, password, "cliente", cliente_id)
+                (nome, password, "cliente", cliente_id),
             )
 
             cnx.commit()
@@ -385,7 +514,6 @@ def cliente_novo():
 
     # GET: formulário vazio
     return render_template("clientes_form.html", titulo="Novo cliente")
-
 
 
 @app.route("/login/editar/<int:id>", methods=["GET", "POST"])
@@ -462,8 +590,6 @@ def cliente_apagar(id):
         cnx.close()
 
     return redirect(url_for("clientes"))
-
-
 
 
 if __name__ == "__main__":

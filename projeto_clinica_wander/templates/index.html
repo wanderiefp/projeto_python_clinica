@@ -5,9 +5,11 @@
   <h1>Bem-vindo à Clínica Veterinária</h1>
   <p>Plataforma para gestão de clientes, animais e consultas.</p>
 
-  {% if not session.get("user_id") %}
-    <p><a href="{{ url_for('login') }}">Entrar</a></p>
-  {% else %}
-    <p><a href="{{ url_for('dashboard') }}">Ir para o Dashboard</a></p>
+  {% if not session.get("username") or not session.get("nome") %}
+    <button class="navbar-toggler"><a href="{{ url_for('login') }}">Entrar como funcionário</a></button>
+    <button class="navbar-toggler"><a href="{{ url_for('cliente_login') }}">Entrar como cliente</a></button>
+  {% endif %}
+  {% if session.get("username") or session.get("nome") %}
+    <p>Já está autenticado. Aceda ao <a href="{{ url_for('dashboard') }}">Dashboard</a>.</p>
   {% endif %}
 {% endblock %}

@@ -124,7 +124,7 @@
 <nav class="navbar navbar-expand-lg navbar-dark navbar-custom shadow">
   <div class="container">
 
-    <a class="navbar-brand d-flex align-items-center" href="{{ url_for('login') }}">
+    <a class="navbar-brand d-flex align-items-center" href="{{ url_for('index') }}">
       <img src="{{ url_for('static', filename='img1.jpg') }}" alt="Logo">
       <span class="ms-3 fs-4 fw-bold text-light">VET WANDER</span>
     </a>
@@ -163,9 +163,7 @@
           </li>
 
         {% else %}
-          <li class="nav-item">
-            <a class="btn btn-custom" href="{{ url_for('login') }}">Login</a>
-          </li>
+         
         {% endif %}
 
       </ul>
