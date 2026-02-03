@@ -2,14 +2,38 @@
 {% block title %}Bem-vindo{% endblock %}
 
 {% block content %}
-  <h1>Bem-vindo à Clínica Veterinária</h1>
-  <p>Plataforma para gestão de clientes, animais e consultas.</p>
 
-  {% if not session.get("username") or not session.get("nome") %}
-    <button class="navbar-toggler"><a href="{{ url_for('login') }}">Entrar como funcionário</a></button>
-    <button class="navbar-toggler"><a href="{{ url_for('cliente_login') }}">Entrar como cliente</a></button>
+<div class="text-center">
+  <h1 class="mb-3 fw-bold">🐾 Bem-vindo à VET WANDER</h1>
+  <p class="mb-4 text-muted">Gestão de clientes, animais e consultas da clínica veterinária</p>
+
+  {% if not session.get("user_id") and not session.get("cliente_id") %}
+  <div class="row justify-content-center mt-4">
+
+    <!-- FUNCIONÁRIOS -->
+    <div class="col-md-5 mb-4">
+      <div class="login-card p-4 text-center">
+        <h4 class="mb-3">👩‍⚕️ Área de Funcionários</h4>
+        <p class="small text-muted">Acesso para administradores e staff da clínica</p>
+        <a href="{{ url_for('login') }}" class="btn btn-login w-100 mt-2">Entrar como Funcionário</a>
+      </div>
+    </div>
+
+    <!-- CLIENTES -->
+    <div class="col-md-5 mb-4">
+      <div class="login-card p-4 text-center">
+        <h4 class="mb-3">🐶 Área do Cliente</h4>
+        <p class="small text-muted">Veja seus animais e consultas</p>
+        <a href="{{ url_for('cliente_login') }}" class="btn btn-login w-100 mt-2">Entrar como Cliente</a>
+      </div>
+    </div>
+
+  </div>
+  {% else %}
+    <div class="alert alert-info text-center">
+      Já está autenticado. Vá para o <a href="{{ url_for('dashboard') }}">Dashboard</a>.
+    </div>
   {% endif %}
-  {% if session.get("username") or session.get("nome") %}
-    <p>Já está autenticado. Aceda ao <a href="{{ url_for('dashboard') }}">Dashboard</a>.</p>
-  {% endif %}
+</div>
+
 {% endblock %}

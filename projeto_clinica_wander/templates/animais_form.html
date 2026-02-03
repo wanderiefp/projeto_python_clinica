@@ -1,37 +1,47 @@
 {% extends "base.html" %}
 {% block content %}
+
+<h2>{{ titulo }}</h2>
+
 <form method="post">
+  <div class="mb-3">
 
-  <p>
-       Selecione o cliente:<br>
-       <select name="cliente_id" required class="form-select">
-           <option value="">-- Escolha um cliente --</option>
-           {% for cliente in clientes %}
-           <option value="{{ cliente.id }}">{{ cliente.nome }}</option>
-           {% endfor %}
-       </select>
-  </p>
+    <label>Cliente</label>
 
-  <p>
-    Nome:<br>
-    <input type="text" name="nome" required value="{{ animais.nome if animais else '' }}">
-  </p>
-  <p>
-    Espécie:<br>
-    <input type="text" name="especie" required value="{{ animais.especie if animais else '' }}">
-  </p>
-  <p>
-    Raça:<br>
-    <input type="text" name="raca" required value="{{ animais.raca if animais else '' }}">
-  </p>
-  <p>
-    Data de Nascimento:<br>
-    <input type="date" name="data_nascimento" required value="{{ animais.data_nascimento if animais else '' }}">
-  </p>
-  
+    <select name="cliente_id" class="form-control" required>
+        {% for c in clientes %}
+    <option value="{{ c.id }}"
+      {% if animal and animal.cliente == c.id %}selected{% endif %}>
+        {{ c.nome }}
+    </option>
+  {% endfor %}
+</select>
 
-  <button type="submit">Guardar</button>
-  <a href="{{ url_for('animais') }}">Cancelar</a>
+
+  </div>
+
+  <div class="mb-3">
+    <label>Nome</label>
+    <input type="text" name="nome" class="form-control" required value="{{ animal.nome if animal else '' }}">
+  </div>
+
+  <div class="mb-3">
+    <label>Espécie</label>
+    <input type="text" name="especie" class="form-control" required value="{{ animal.especie if animal else '' }}">
+  </div>
+
+  <div class="mb-3">
+    <label>Raça</label>
+    <input type="text" name="raca" class="form-control" required value="{{ animal.raca if animal else '' }}">
+  </div>
+
+  <div class="mb-3">
+    <label>Data de Nascimento</label>
+    <input type="date" name="data_nascimento" class="form-control" value="{{ animal.data_nascimento if animal else '' }}">
+  </div>
+
+  <button class="btn btn-success">Guardar</button>
+  <a href="{{ url_for('animais') }}" class="btn btn-secondary">Cancelar</a>
 </form>
 
 {% endblock %}

@@ -1,21 +1,30 @@
 {% extends "base.html" %}
-{% block content %} 
- 
- <h1>{{ titulo }}</h1>
+{% block content %}
 
-  <form method="post">
-    <p>
-      Email<br>
-      <input type="email" name="email" required>
-    </p>
+<div class="row justify-content-center">
+  <div class="col-md-5">
+    <div class="login-card p-4">
+      <h3 class="text-center mb-4">Login Cliente</h3>
 
-    <p>
-      Password<br>
-      <input type="password" name="password" required>
-    </p>
+      <form method="post">
+        <div class="mb-3">
+          <label>Email</label>
+          <input type="email" name="email" class="form-control" required>
+        </div>
 
-    <button type="submit">Entrar</button>
-    <a href="{{ url_for('index') }}">Cancelar</a>
-  </form>
+        <div class="mb-3">
+          <label>Password</label>
+          <input type="password" name="password" class="form-control" required>
+        </div>
 
-  {% endblock %}
+        <button class="btn btn-login w-100">Entrar</button>
+      </form>
+
+      <div class="text-center mt-3">
+        <a href="{{ url_for('index') }}">← Voltar</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

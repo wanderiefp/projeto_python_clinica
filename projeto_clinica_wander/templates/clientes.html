@@ -33,6 +33,13 @@
                 <td>{{ cliente.morada }}</td>
                 <td>{{ cliente.created_at }}</td>
             </tr>
+            {% if session.get("role") == "admin" %}
+            <tr>
+                <td colspan="6">
+                    <button> <a style="text-decoration: none; color: rgb(0, 0, 0);" href="{{ url_for('cliente_editar', id=cliente.id) }}">✏️ Editar</a></button>
+                    <button> <a style="text-decoration: none; color: rgb(0, 0, 0);" href="{{ url_for('cliente_apagar', id=cliente.id) }}">🗑️ Apagar</a></button>
+                </td>
+            {% endif %}
             {% endfor %}
         </tbody>
 

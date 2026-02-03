@@ -5,60 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Clínica Veterinária{% endblock %}</title>
 
-  <!-- Bootstrap -->
+  <!-- 🔵 BOOTSTRAP CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
+  <!-- 🎨 ESTILOS PERSONALIZADOS -->
   <style>
-    /* ===== TABELAS PROFISSIONAIS ===== */
-
-.table-custom {
-  border-radius: 12px;
-  overflow: hidden;
-  background: white;
-  color: #1a1a1a;
-}
-
-.table-custom thead {
-  background: linear-gradient(90deg, #1b263b, #243b55);
-  color: #ffffff;
-  font-size: 0.9rem;
-  letter-spacing: 0.5px;
-}
-
-.table-custom th {
-  padding: 14px 18px;
-  text-align: left;
-}
-
-.table-custom td {
-  padding: 14px 18px;
-  vertical-align: middle;
-}
-
-.table-custom tbody tr {
-  border-bottom: 1px solid #e0e0e0;
-  transition: 0.2s;
-}
-
-.table-custom tbody tr:hover {
-  background-color: #f4f9ff;
-}
-
-.table-custom tbody tr:last-child {
-  border-bottom: none;
-}
-
-/* Espaçamento entre colunas visual */
-.table-custom td + td,
-.table-custom th + th {
-  border-left: 1px solid #eeeeee;
-}
-
-/* Botões dentro da tabela */
-.table-actions {
-  display: flex;
-  gap: 8px;
-}
 
     body {
       background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
@@ -66,14 +17,14 @@
       color: #f1f1f1;
     }
 
+    /* NAVBAR */
     .navbar-custom {
       background: linear-gradient(90deg, #0d1b2a, #1b263b);
       padding: 12px 0;
     }
 
     .navbar-brand img {
-      height: 70px;
-      width: auto;
+      height: 60px;
       border-radius: 12px;
       box-shadow: 0 0 10px rgba(0,0,0,0.4);
     }
@@ -89,6 +40,7 @@
       transform: translateY(-2px);
     }
 
+    /* CARD PRINCIPAL */
     .card-custom {
       background: #ffffff;
       color: #1a1a1a;
@@ -97,6 +49,24 @@
       padding: 30px;
     }
 
+    /* TABELAS */
+    .table-custom {
+      border-radius: 12px;
+      overflow: hidden;
+      background: white;
+      color: #1a1a1a;
+    }
+
+    .table-custom thead {
+      background: linear-gradient(90deg, #1b263b, #243b55);
+      color: #ffffff;
+    }
+
+    .table-custom tbody tr:hover {
+      background-color: #f4f9ff;
+    }
+
+    /* BOTÕES PADRÃO */
     .btn-custom {
       background: linear-gradient(45deg, #1b5e20, #2e7d32);
       color: white;
@@ -112,9 +82,38 @@
       transform: scale(1.05);
     }
 
+    /* ===== CARDS DE LOGIN ===== */
+    .login-card {
+      background: #ffffff;
+      border-radius: 18px;
+      box-shadow: 0 15px 40px rgba(0,0,0,0.25);
+      transition: 0.3s;
+    }
+
+    .login-card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 20px 45px rgba(0,0,0,0.35);
+    }
+
+    /* BOTÃO DE LOGIN */
+    .btn-login {
+      background: linear-gradient(45deg, #1565c0, #42a5f5);
+      color: white;
+      border-radius: 30px;
+      padding: 10px;
+      font-weight: 600;
+      transition: 0.3s;
+    }
+
+    .btn-login:hover {
+      background: linear-gradient(45deg, #1e88e5, #64b5f6);
+      transform: scale(1.05);
+    }
+
     footer {
       color: #b0bec5;
     }
+
   </style>
 </head>
 
@@ -136,9 +135,11 @@
     <div class="collapse navbar-collapse" id="menu">
       <ul class="navbar-nav ms-auto">
 
-        {% if session.get("user_id") %}
+        {% if session.get("user_id") or session.get("cliente_id") %}
 
-          <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a></li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a>
+          </li>
 
           {% if session.get("role") in ["admin", "staff"] %}
             <li class="nav-item"><a class="nav-link" href="{{ url_for('clientes') }}">Clientes</a></li>
@@ -151,19 +152,16 @@
           {% endif %}
 
           {% if session.get("role") == "cliente" %}
-            <li class="nav-item"><a class="nav-link" href="{{ url_for('users') }}">Minha Conta</a></li>
             <li class="nav-item"><a class="nav-link" href="{{ url_for('animais') }}">Meus Animais</a></li>
             <li class="nav-item"><a class="nav-link" href="{{ url_for('consultas') }}">Minhas Consultas</a></li>
           {% endif %}
 
           <li class="nav-item ms-3">
             <a class="btn btn-custom" href="{{ url_for('logout') }}">
-              Logout ({{ session.get("username") }})
+              Logout
             </a>
           </li>
 
-        {% else %}
-         
         {% endif %}
 
       </ul>
@@ -185,7 +183,7 @@
   {% endwith %}
 </div>
 
-<!-- 📦 CONTEÚDO -->
+<!-- 📦 CONTEÚDO DAS PÁGINAS -->
 <div class="container my-5">
   <div class="card-custom">
     {% block content %}{% endblock %}
@@ -197,6 +195,8 @@
   © 2026 Clínica Veterinária • Sistema de Gestão
 </footer>
 
+<!-- 🔵 BOOTSTRAP JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
 </body>
 </html>

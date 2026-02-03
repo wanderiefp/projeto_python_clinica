@@ -23,7 +23,6 @@ def esta_logado():
     return "user_id" in session or "cliente_id" in session
 
 
-
 def exigir_admin():
     return session.get("role") == "admin"
 
@@ -67,7 +66,7 @@ def login():
             session["user_id"] = user["id"]
             session["username"] = user["username"]
             session["role"] = user["role"]  # <-- MUITO IMPORTANTE
-            return redirect(url_for("users"))
+            return redirect(url_for("dashboard"))
         else:
             flash("Username ou password incorretos.")
             return redirect(url_for("login"))
@@ -152,11 +151,13 @@ def dashboard():
                 )
                 cliente = cur.fetchone()
                 if cliente:
-                    info.update({
-                        "nome": cliente["nome"],
-                        "telefone": cliente["telefone"],
-                        "email": cliente["email"]
-                    })
+                    info.update(
+                        {
+                            "nome": cliente["nome"],
+                            "telefone": cliente["telefone"],
+                            "email": cliente["email"],
+                        }
+                    )
     finally:
         cur.close()
         cnx.close()
@@ -165,10 +166,8 @@ def dashboard():
         "dashboard.html",
         titulo="Dashboard",
         username=info.get("username"),
-        role=info.get("role")
+        role=info.get("role"),
     )
-
-
 
 
 # ---------- CLIENTES (LISTAR) ----------
@@ -322,73 +321,114 @@ def animais():
     cnx = ligar_bd()
     cur = cnx.cursor(dictionary=True)
 
-    # Admin/Staff vêem todos os animais
-    if exigir_admin() or e_staff():
-        cur.execute(
-            "SELECT id, cliente_id, nome, especie, raca, data_nascimento, created_at "
-            "FROM animais ORDER BY id DESC"
-        )
+    # Admin e Staff veem todos
+    if session.get("role") in ["admin", "staff"]:
+        cur.execute("SELECT id, cliente_id, nome, especie, raca, data_nascimento, created_at " \
+        "FROM animais ORDER BY id DESC ")
+        
         is_admin_or_staff = True
+
+    # Cliente vê apenas os seus
     else:
         cliente_id = session.get("cliente_id")
-        cur.execute(
-            "SELECT id, cliente_id, nome, especie, raca, data_nascimento, created_at "
-            "FROM animais WHERE cliente_id=%s ORDER BY id DESC",
-            (cliente_id,),
-        )
+        cur.execute(" SELECT id, cliente_id, nome, especie, raca, data_nascimento, created_at " \
+        "FROM animais WHERE cliente_id = %s ORDER BY id DESC ", (cliente_id,))
         is_admin_or_staff = False
 
     lista_animais = cur.fetchall()
     cur.close()
     cnx.close()
 
-    return render_template(
-        "animais.html", animais=lista_animais, is_admin_or_staff=is_admin_or_staff
-    )
+    return render_template("animais.html",
+                           animais=lista_animais,
+                           is_admin_or_staff=is_admin_or_staff)
 
 
 @app.route("/animais/novo", methods=["GET", "POST"])
 def animais_novo():
-    redir = exigir_login()
-    if redir:
-        return redir
-
-    if not exigir_admin() and not e_staff():
+    if session.get("role") not in ["admin", "staff"]:
         flash("Acesso negado.")
         return redirect(url_for("dashboard"))
 
     cnx = ligar_bd()
     cur = cnx.cursor(dictionary=True)
 
-    # Pegamos todos os clientes para o select
-    cur.execute("SELECT id, nome FROM clientes ORDER BY nome ASC")
+    cur.execute("SELECT id, nome FROM clientes ORDER BY nome")
     clientes = cur.fetchall()
 
     if request.method == "POST":
-        cliente_id = request.form["cliente_id"]  # vem do select
-        nome = request.form["nome"].strip()
-        especie = request.form["especie"].strip()
-        raca = request.form["raca"].strip()
-        data_nascimento = request.form["data_nascimento"].strip()
+        cliente_id = request.form["cliente_id"]
+        nome = request.form["nome"]
+        especie = request.form["especie"]
+        raca = request.form["raca"]
+        data_nascimento = request.form["data_nascimento"]
 
-        try:
-            cur.execute(
-                "INSERT INTO animais (cliente_id, nome, especie, raca, data_nascimento, created_at) "
-                "VALUES (%s, %s, %s, %s, %s, NOW())",
-                (cliente_id, nome, especie, raca, data_nascimento),
-            )
-            cnx.commit()
-            flash("Animal adicionado com sucesso!")
-            return redirect(url_for("animais"))
+        cur.execute(" INSERT INTO animais (cliente_id, nome, especie, raca, data_nascimento, " \
+        "created_at) VALUES (%s, %s, %s, %s, %s, NOW()", (cliente_id, nome, especie, raca, data_nascimento))
 
-        except mysql.connector.Error as err:
-            flash(f"Erro ao adicionar novo animal: {err}")
-            return redirect(url_for("animais"))
+        cnx.commit()
+        flash("Animal criado com sucesso!")
+        return redirect(url_for("animais"))
 
-    cur.close()
-    cnx.close()
+    return render_template("animais_form.html", clientes=clientes, titulo="Novo Animal")
 
-    return render_template("animais_form.html", titulo="Novo Animal", clientes=clientes)
+
+@app.route("/animais/editar/<int:id>", methods=["GET", "POST"])
+def animais_editar(id):
+    if session.get("role") not in ["admin", "staff"]:
+        flash("Acesso negado.")
+        return redirect(url_for("dashboard"))
+
+    cnx = ligar_bd()
+    cur = cnx.cursor(dictionary=True)
+
+    if request.method == "POST":
+        cliente_id = request.form["cliente_id"]
+        nome = request.form["nome"]
+        especie = request.form["especie"]
+        raca = request.form["raca"]
+        data_nascimento = request.form["data_nascimento"]
+
+        cliente_id = int(request.form["cliente_id"])
+
+        cur.execute("""
+            UPDATE animais
+            SET cliente_id=%s,
+            nome=%s,
+            especie=%s,
+            raca=%s,
+            data_nascimento=%s
+        WHERE id=%s
+        """, (cliente_id, nome, especie, raca, data_nascimento, id))
+
+
+        cnx.commit()
+        flash("Animal atualizado!")
+        return redirect(url_for("animais"))
+
+    cur.execute("SELECT * FROM animais WHERE id=%s", (id,))
+    animal = cur.fetchone()
+
+    cur.execute("SELECT id, nome FROM clientes ORDER BY nome")
+    clientes = cur.fetchall()
+
+    return render_template("animais_form.html", animal=animal, clientes=clientes, titulo="Editar Animal")
+
+
+@app.route("/animais/apagar/<int:id>", methods=["POST"])
+def animais_apagar(id):
+    if session.get("role") not in ["admin", "staff"]:
+        flash("Acesso negado.")
+        return redirect(url_for("dashboard"))
+
+    cnx = ligar_bd()
+    cur = cnx.cursor()
+
+    cur.execute("DELETE FROM animais WHERE id=%s", (id,))
+    cnx.commit()
+
+    flash("Animal removido com sucesso!")
+    return redirect(url_for("animais"))
 
 
 # ---------- CONSULTAS ANIMAIS ----------
@@ -401,16 +441,127 @@ def consultas():
     cnx = ligar_bd()
     cur = cnx.cursor(dictionary=True)
 
-    cur.execute(
-        "SELECT id, animal_id, data_hora, motivo, notas, created_at FROM consultas ORDER BY id DESC"
-    )
-    lista_consultas = cur.fetchall()
+    # ADMIN E STAFF VEEM TODAS
+    if session.get("role") in ["admin", "staff"]:
+        cur.execute("""
+            SELECT c.*, a.nome AS animal_nome
+            FROM consultas c
+            JOIN animais a ON c.animal_id = a.id
+            ORDER BY c.data_hora DESC
+        """)
+    else:
+        # CLIENTE SÓ VÊ CONSULTAS DOS SEUS ANIMAIS
+        cliente_id = session.get("cliente_id")
+        cur.execute("""
+            SELECT c.*, a.nome AS animal_nome
+            FROM consultas c
+            JOIN animais a ON c.animal_id = a.id
+            WHERE a.cliente_id = %s
+            ORDER BY c.data_hora DESC
+        """, (cliente_id,))
 
+    lista_consultas = cur.fetchall()
     cur.close()
     cnx.close()
 
     return render_template("consultas.html", consultas=lista_consultas)
 
+
+@app.route("/consultas/nova", methods=["GET", "POST"])
+def consulta_nova():
+    redir = exigir_login()
+    if redir:
+        return redir
+
+    if e_cliente():
+        flash("Clientes não podem criar consultas.")
+        return redirect(url_for("consultas"))
+
+    cnx = ligar_bd()
+    cur = cnx.cursor(dictionary=True)
+
+    cur.execute("SELECT id, nome FROM animais ORDER BY nome")
+    animais = cur.fetchall()
+
+    if request.method == "POST":
+        animal_id = request.form["animal_id"]
+        data_hora = request.form["data_hora"]
+        motivo = request.form["motivo"]
+        notas = request.form["notas"]
+
+        cur2 = cnx.cursor()
+        cur2.execute(
+            "INSERT INTO consultas (animal_id, data_hora, motivo, notas, created_at) VALUES (%s,%s,%s,%s,NOW())",
+            (animal_id, data_hora, motivo, notas),
+        )
+        cnx.commit()
+
+        flash("Consulta criada com sucesso!")
+        return redirect(url_for("consultas"))
+
+    cur.close()
+    cnx.close()
+    return render_template("consulta_form.html", titulo="Nova Consulta", animais=animais, consulta=None)
+
+
+@app.route("/consultas/editar/<int:id>", methods=["GET", "POST"])
+def consulta_editar(id):
+    redir = exigir_login()
+    if redir:
+        return redir
+
+    if e_cliente():
+        flash("Clientes não podem editar consultas.")
+        return redirect(url_for("consultas"))
+
+    cnx = ligar_bd()
+    cur = cnx.cursor(dictionary=True)
+
+    cur.execute("SELECT * FROM consultas WHERE id=%s", (id,))
+    consulta = cur.fetchone()
+
+    cur.execute("SELECT id, nome FROM animais ORDER BY nome")
+    animais = cur.fetchall()
+
+    if request.method == "POST":
+        animal_id = request.form["animal_id"]
+        data_hora = request.form["data_hora"]
+        motivo = request.form["motivo"]
+        notas = request.form["notas"]
+
+        cur2 = cnx.cursor()
+        cur2.execute(
+            "UPDATE consultas SET animal_id=%s, data_hora=%s, motivo=%s, notas=%s WHERE id=%s",
+            (animal_id, data_hora, motivo, notas, id),
+        )
+        cnx.commit()
+
+        flash("Consulta atualizada com sucesso!")
+        return redirect(url_for("consultas"))
+
+    cur.close()
+    cnx.close()
+    return render_template("consulta_form.html", titulo="Editar Consulta", consulta=consulta, animais=animais)
+
+@app.route("/consultas/apagar/<int:id>", methods=["POST"])
+def consulta_apagar(id):
+    redir = exigir_login()
+    if redir:
+        return redir
+
+    if not exigir_admin() and not e_staff():
+        flash("Apenas staff ou admin podem apagar consultas.")
+        return redirect(url_for("consultas"))
+
+    cnx = ligar_bd()
+    cur = cnx.cursor()
+    cur.execute("DELETE FROM consultas WHERE id=%s", (id,))
+    cnx.commit()
+    cur.close()
+    cnx.close()
+
+    flash("Consulta apagada com sucesso!")
+    return redirect(url_for("consultas"))
 
 # ---------- CLIENTES ----------
 
@@ -441,13 +592,12 @@ def cliente_login():
         cur.close()
         cnx.close()
 
-        #Verifica se existe login e se a senha confere
+        # Verifica se existe login e se a senha confere
         if not user or user["password"] != password:
             flash("Email ou senha inválidos.")
             return redirect(url_for("cliente_login"))
 
-
-        #Aqui cria a sessão
+        # Aqui cria a sessão
         session["cliente_id"] = cliente["id"]
         session["cliente_nome"] = cliente["nome"]
         session["role"] = user["role"]
@@ -561,11 +711,11 @@ def cliente_editar(id):
 
     if not login_row:
         flash("Login não encontrado.")
-        return redirect(url_for("users"))
+        return redirect(url_for("clientes"))
 
-    return render_template(
-        "clientes_form.html", titulo="Editar cliente", login=login_row
-    )
+
+    return render_template("clientes_form.html",titulo="Editar cliente",cliente=login_row   
+)
 
 
 @app.route("/cliente/apagar/<int:id>", methods=["POST"])

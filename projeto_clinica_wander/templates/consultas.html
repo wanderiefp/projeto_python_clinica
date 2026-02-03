@@ -1,44 +1,50 @@
 {% extends "base.html" %}
 {% block content %}
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Consultas</title>
-</head>
-<body>
-    <h1>Consultas</h1>
-    <table border="1">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Animal ID</th>
-                <th>Data da Consulta</th>
-                <th>Motivo</th>
-                <th>Diagnóstico</th>
-                <th>Tratamento</th>
-                <th>Criado em</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for consulta in consultas %}
-            <tr>
-                <td>{{ consulta.id }}</td>
-                <td>{{ consulta.animal_id }}</td>
-                <td>{{ consulta.data_consulta }}</td>
-                <td>{{ consulta.motivo }}</td>
-                <td>{{ consulta.diagnostico }}</td>
-                <td>{{ consulta.tratamento }}</td>
-                <td>{{ consulta.created_at }}</td>
+<h1>Consultas</h1>
 
-            </tr>{% endfor %}
-        </tbody>
+{% if session.get("role") in ["admin", "staff"] %}
+  <a href="{{ url_for('consulta_nova') }}" class="btn btn-success mb-3">Nova Consulta</a>
+{% endif %}
 
-    </table>
+<table class="table table-custom">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Animal</th>
+      <th>Data</th>
+      <th>Motivo</th>
+      <th>Diagnóstico</th>
+      <th>Tratamento</th>
+      <th>Criado em</th>
+      {% if session.get("role") in ["admin", "staff"] %}
+        <th>Ações</th>
+      {% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for consulta in consultas %}
+    <tr>
+      <td>{{ consulta.id }}</td>
+      <td>{{ consulta.animal_nome }}</td>
+      <td>{{ consulta.data_hora }}</td>
+      <td>{{ consulta.motivo }}</td>
+      <td>{{ consulta.diagnostico }}</td>
+      <td>{{ consulta.tratamento }}</td>
+      <td>{{ consulta.created_at }}</td>
 
-</body>
-</html>
+      {% if session.get("role") in ["admin", "staff"] %}
+      <td>
+        <a href="{{ url_for('consulta_editar', id=consulta.id) }}" class="btn btn-warning btn-sm">Editar</a>
+
+        <form action="{{ url_for('consulta_apagar', id=consulta.id) }}" method="post" style="display:inline;">
+          <button class="btn btn-danger btn-sm">Apagar</button>
+        </form>
+      </td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
 
 {% endblock %}
