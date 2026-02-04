@@ -29,8 +29,6 @@
       <td>{{ consulta.animal_nome }}</td>
       <td>{{ consulta.data_hora }}</td>
       <td>{{ consulta.motivo }}</td>
-      <td>{{ consulta.diagnostico }}</td>
-      <td>{{ consulta.tratamento }}</td>
       <td>{{ consulta.created_at }}</td>
 
       {% if session.get("role") in ["admin", "staff"] %}

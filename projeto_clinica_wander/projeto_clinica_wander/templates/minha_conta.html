@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Minha conta{% endblock %}
+
+{% block content %}
+  <h1>Minha conta</h1>
+
+  {% if cliente %}
+    <ul>
+      <li><strong>Nome:</strong> {{ cliente.nome }}</li>
+      <li><strong>Telefone:</strong> {{ cliente.telefone }}</li>
+      <li><strong>Email:</strong> {{ cliente.email }}</li>
+      <li><strong>Morada:</strong> {{ cliente.morada }}</li>
+      <li><strong>Cliente desde:</strong> {{ cliente.created_at }}</li>
+    </ul>
+  {% else %}
+    <p>Não foi possível carregar os seus dados.</p>
+  {% endif %}
+{% endblock %}

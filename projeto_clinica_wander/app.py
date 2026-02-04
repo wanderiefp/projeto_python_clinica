@@ -44,34 +44,50 @@ def exigir_login():
 # ---------- LOGIN ----------
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    #se houver acionamento do metodo post no html atravez de um submit
+    #request.form que contem os dados enviados pelo form
+    #request.form[username] captura o foi digitado conform o input do HTML
     if request.method == "POST":
         username = request.form["username"].strip()
         password = request.form["password"]
 
-        cnx = ligar_bd()
-        cur = cnx.cursor(dictionary=True)
+    #depois que esta salvo nas variaveis o sistema vai ate a base de dados
+    #saca todos os dados dentro do select desde que o username exista e 
+    # esteja em conformidade com o que foi digitado salva os dados em um dicionario
+        try:
+            cnx = ligar_bd()
+            cur = cnx.cursor(dictionary=True)
 
-        # Agora vai buscar também o role
-        cur.execute(
-            "SELECT id, username, password, role FROM users WHERE username = %s",
-            (username,),
-        )
-        user = cur.fetchone()
+            cur.execute(
+                "SELECT id, username, password, role FROM users WHERE username=%s",
+                (username,)
+            )
 
-        cur.close()
-        cnx.close()
+            user = cur.fetchone()
 
-        # Validar password (texto simples)
+        except mysql.connector.Error as err:
+            flash(f"Erro ao tentar login: {err}")
+            return redirect(url_for("login"))
+
+        finally:
+            cur.close()
+            cnx.close()
+
+        # validação simples pega o que foi salvo em fetchone para validacao
+        #caso seja true ele guarda os dados abaixo na session
         if user and user["password"] == password:
             session["user_id"] = user["id"]
             session["username"] = user["username"]
-            session["role"] = user["role"]  # <-- MUITO IMPORTANTE
+            session["role"] = user["role"]
             return redirect(url_for("dashboard"))
         else:
             flash("Username ou password incorretos.")
             return redirect(url_for("login"))
 
+    #abaixo ele monta o HTML e envia para o HTML, que contem o form e recebe
+    #os dadsos do utilizador
     return render_template("login.html", titulo="Login de funcionários")
+
 
 
 @app.route("/logout")

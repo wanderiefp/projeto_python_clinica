@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<h1>{{ titulo }}</h1>
+<p>Utilizador: <strong>{{ username }}</strong></p>
+<p>Perfil: <strong>{{ role }}</strong></p>
+
+<!-- Navbar interna do dashboard -->
+<ul class="nav nav-pills mb-3">
+  {% if role == "admin" or role == "staff" %}
+    <li class="nav-item"><a class="nav-link" href="{{ url_for('clientes') }}">Clientes</a></li>
+    <li class="nav-item"><a class="nav-link" href="{{ url_for('animais') }}">Animais</a></li>
+    <li class="nav-item"><a class="nav-link" href="{{ url_for('consultas') }}">Consultas</a></li>
+  {% elif role == "cliente" %}
+    <li class="nav-item"><a class="nav-link" href="{{ url_for('animais') }}">Meus Animais</a></li>
+    <li class="nav-item"><a class="nav-link" href="{{ url_for('consultas') }}">Minhas Consultas</a></li>
+  {% endif %}
+</ul>
+
+<!-- Info de permissões -->
+{% if role == "admin" %}
+  <p>Permissões: pode ver/criar/editar/apagar users, clientes, animais e consultas.</p>
+{% elif role == "staff" %}
+  <p>Permissões: pode ver/criar/editar clientes, animais e consultas. Não pode apagar users.</p>
+{% else %}
+  <p>Permissões: pode ver os seus dados pessoais, os seus animais e as suas consultas.</p>
+{% endif %}
+
+{% endblock %}

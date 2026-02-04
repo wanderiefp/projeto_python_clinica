@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1 class="mb-3">Lista de Animais</h1>
+
+{% if session.get("role") in ["admin", "staff"] %}
+<a href="{{ url_for('animais_novo') }}" class="btn btn-success mb-3">
+    ➕ Adicionar Animal
+</a>
+{% endif %}
+
+<table class="table table-custom shadow-sm">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Nome</th>
+            <th>Espécie</th>
+            <th>Raça</th>
+            <th>Data de Nascimento</th>
+            <th>Dono</th>
+            <th>Criado em</th>
+            {% if session.get("role") in ["admin", "staff"] %}
+            <th>Ações</th>
+            {% endif %}
+        </tr>
+    </thead>
+    <tbody>
+      {% for animal in animais %}
+        <tr>
+            <td>{{ animal.id }}</td>
+            <td>{{ animal.nome }}</td>
+            <td>{{ animal.especie }}</td>
+            <td>{{ animal.raca }}</td>
+            <td>{{ animal.data_nascimento }}</td>
+
+            {% for c in clientes %}
+            <td name="cliente_id" value="{{ c.id }}"
+                {% if animal and animal.cliente == c.id %}selected{% endif %}>
+            {{ c.nome }}
+            </td>{% endfor %}
+            <td>{{ animal.cliente_id }}</td>
+            <td>{{ animal.created_at }}</td>
+
+            {% if session.get("role") in ["admin", "staff"] %}
+            <td>
+                <a href="{{ url_for('animais_editar', id=animal.id) }}" class="btn btn-warning btn-sm">Editar</a>
+
+                <form action="{{ url_for('animais_apagar', id=animal.id) }}" method="post" style="display:inline;">
+                    <button class="btn btn-danger btn-sm">Apagar</button>
+                </form>
+            </td>
+            {% endif %}
+        </tr>
+      {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}

@@ -1,0 +1,31 @@
+# ---------- LOGIN ----------
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form["username"].strip()
+        password = request.form["password"]
+
+        cnx = ligar_bd()
+        cur = cnx.cursor(dictionary=True)
+
+        # Agora vai buscar também o role
+        cur.execute(
+            "SELECT id, username, password, role FROM users WHERE username = %s",
+            (username,),
+        )
+        user = cur.fetchone()
+
+        cur.close()
+        cnx.close()
+
+        # Validar password (texto simples)
+        if user and user["password"] == password:
+            session["user_id"] = user["id"]
+            session["username"] = user["username"]
+            session["role"] = user["role"]  # <-- MUITO IMPORTANTE
+            return redirect(url_for("users"))
+        else:
+            flash("Username ou password incorretos.")
+            return redirect(url_for("login"))
+
+    return render_template("login.html")

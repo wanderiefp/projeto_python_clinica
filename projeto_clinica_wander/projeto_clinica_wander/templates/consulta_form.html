@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>{{ titulo }}</h2>
+
+<form method="post">
+
+  <p>
+    Animal:<br>
+    <select name="animal_id" required>
+      {% for a in animais %}
+        <option value="{{ a.id }}"
+          {% if consulta and consulta.animal_id == a.id %}selected{% endif %}>
+          {{ a.nome }}
+        </option>
+      {% endfor %}
+    </select>
+  </p>
+
+  <p>
+    Data e Hora:<br>
+    <input type="datetime-local" name="data_hora"
+      value="{{ consulta.data_hora if consulta else '' }}" required>
+  </p>
+
+  <p>
+    Motivo:<br>
+    <input type="text" name="motivo" required
+      value="{{ consulta.motivo if consulta else '' }}">
+  </p>
+
+  <p>
+    Notas:<br>
+    <textarea name="notas">{{ consulta.notas if consulta else '' }}</textarea>
+  </p>
+
+  <button type="submit">Guardar</button>
+  <a href="{{ url_for('consultas') }}">Cancelar</a>
+</form>
+
+{% endblock %}
