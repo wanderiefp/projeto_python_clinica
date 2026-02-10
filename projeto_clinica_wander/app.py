@@ -369,22 +369,35 @@ def animais_novo():
     cnx = ligar_bd()
     cur = cnx.cursor(dictionary=True)
 
-    cur.execute("SELECT id, nome FROM clientes ORDER BY nome")
-    clientes = cur.fetchall()
+    try:
+        # Buscar lista de clientes para o select
+        cur.execute("SELECT id, nome FROM clientes ORDER BY nome")
+        clientes = cur.fetchall()
 
-    if request.method == "POST":
-        cliente_id = request.form["cliente_id"]
-        nome = request.form["nome"]
-        especie = request.form["especie"]
-        raca = request.form["raca"]
-        data_nascimento = request.form["data_nascimento"]
+        if request.method == "POST":
+            cliente_id = int(request.form["cliente_id"])
+            nome = request.form["nome"]
+            especie = request.form["especie"]
+            raca = request.form["raca"]
+            data_nascimento = request.form["data_nascimento"]
 
-        cur.execute(" INSERT INTO animais (cliente_id, nome, especie, raca, data_nascimento, " \
-        "created_at) VALUES (%s, %s, %s, %s, %s, NOW()", (cliente_id, nome, especie, raca, data_nascimento))
+            # Inserção do novo animal
+            cur.execute("""
+                INSERT INTO animais
+                (cliente_id, nome, especie, raca, data_nascimento, created_at)
+                VALUES (%s, %s, %s, %s, %s, NOW())
+            """, (cliente_id, nome, especie, raca, data_nascimento))
 
-        cnx.commit()
-        flash("Animal criado com sucesso!")
-        return redirect(url_for("animais"))
+            cnx.commit()
+            flash("Animal criado com sucesso!")
+            return redirect(url_for("animais"))
+
+    except mysql.connector.Error as err:
+        flash(f"Erro ao criar animal: {err}")
+
+    finally:
+        cur.close()
+        cnx.close()
 
     return render_template("animais_form.html", clientes=clientes, titulo="Novo Animal")
 
@@ -398,37 +411,47 @@ def animais_editar(id):
     cnx = ligar_bd()
     cur = cnx.cursor(dictionary=True)
 
-    if request.method == "POST":
-        cliente_id = request.form["cliente_id"]
-        nome = request.form["nome"]
-        especie = request.form["especie"]
-        raca = request.form["raca"]
-        data_nascimento = request.form["data_nascimento"]
+    try:
+        if request.method == "POST":
+            cliente_id = int(request.form["cliente_id"])
+            nome = request.form["nome"]
+            especie = request.form["especie"]
+            raca = request.form["raca"]
+            data_nascimento = request.form["data_nascimento"]
 
-        cliente_id = int(request.form["cliente_id"])
+            # Atualização dos dados do animal
+            cur.execute("""
+                UPDATE animais
+                SET cliente_id=%s,
+                    nome=%s,
+                    especie=%s,
+                    raca=%s,
+                    data_nascimento=%s
+                WHERE id=%s
+            """, (cliente_id, nome, especie, raca, data_nascimento, id))
 
-        cur.execute("""
-            UPDATE animais
-            SET cliente_id=%s,
-            nome=%s,
-            especie=%s,
-            raca=%s,
-            data_nascimento=%s
-        WHERE id=%s
-        """, (cliente_id, nome, especie, raca, data_nascimento, id))
+            cnx.commit()
+            flash("Animal atualizado!")
+            return redirect(url_for("animais"))
 
+        # Buscar dados atuais do animal
+        cur.execute("SELECT * FROM animais WHERE id=%s", (id,))
+        animal = cur.fetchone()
 
-        cnx.commit()
-        flash("Animal atualizado!")
+        # Buscar clientes para o select
+        cur.execute("SELECT id, nome FROM clientes ORDER BY nome")
+        clientes = cur.fetchall()
+
+    except mysql.connector.Error as err:
+        flash(f"Erro ao editar animal: {err}")
         return redirect(url_for("animais"))
 
-    cur.execute("SELECT * FROM animais WHERE id=%s", (id,))
-    animal = cur.fetchone()
-
-    cur.execute("SELECT id, nome FROM clientes ORDER BY nome")
-    clientes = cur.fetchall()
+    finally:
+        cur.close()
+        cnx.close()
 
     return render_template("animais_form.html", animal=animal, clientes=clientes, titulo="Editar Animal")
+
 
 
 @app.route("/animais/apagar/<int:id>", methods=["POST"])
@@ -640,31 +663,28 @@ def cliente_novo():
         cnx = ligar_bd()
         cur = cnx.cursor()
 
-        cur1 = cnx.cursor()
-        cur1.execute(
-            "SELECT email FROM clientes WHERE email=%s",
-            (email),
-        )
-        cliente = cur1.fetchone()
-
-        if cliente == email:
-            flash("Ja existe um cliente com esse email...")
-            return render_template("cliente_novo")
-
         try:
-            # Inserir na tabela clientes
-            cur.execute(
-                "INSERT INTO clientes (nome, telefone, email, morada) "
-                "VALUES (%s, %s, %s, %s)",
-                (nome, telefone, email, morada),
-            )
-            cliente_id = cur.lastrowid  # pega o id do cliente recém-criado
+            # Verifica se já existe cliente com o mesmo email
+            cur.execute("SELECT id FROM clientes WHERE email=%s", (email,))
+            cliente_existente = cur.fetchone()
 
-            # Inserir na tabela users (login do cliente)
-            cur.execute(
-                "INSERT INTO users (username, password, role, cliente_id) VALUES (%s, %s, %s, %s)",
-                (nome, password, "cliente", cliente_id),
-            )
+            if cliente_existente:
+                flash("Já existe um cliente com esse email.")
+                return render_template("clientes_form.html", titulo="Novo cliente")
+
+            # Inserir cliente
+            cur.execute("""
+                INSERT INTO clientes (nome, telefone, email, morada)
+                VALUES (%s, %s, %s, %s)
+            """, (nome, telefone, email, morada))
+
+            cliente_id = cur.lastrowid
+
+            # Criar login automático do cliente
+            cur.execute("""
+                INSERT INTO users (username, password, role, cliente_id)
+                VALUES (%s, %s, %s, %s)
+            """, (nome, password, "cliente", cliente_id))
 
             cnx.commit()
             flash("Cliente criado com sucesso!")
@@ -678,7 +698,6 @@ def cliente_novo():
 
         return redirect(url_for("clientes"))
 
-    # GET: formulário vazio
     return render_template("clientes_form.html", titulo="Novo cliente")
 
 
